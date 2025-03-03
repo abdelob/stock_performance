@@ -1,12 +1,14 @@
 
-import pandas as pd
+import numpy as np
 import yfinance as yf
 from io import BytesIO
 import base64
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-import statsmodels as sm
+import statsmodels.api as sm
+from statsmodels.tools import add_constant
+import pandas as pd
 from statsmodels.tools import add_constant
 
 
@@ -37,10 +39,6 @@ def get_risk_free_rate(start,end):
 
 
 def distribution_plot_base64(ticker_data):
-    """
-    Creates a Seaborn histogram for daily returns (could be 1+ columns)
-    and returns the plot as a base64-encoded PNG string.
-    """
     sns.set_style("whitegrid")
 
     # Create a figure
@@ -51,7 +49,7 @@ def distribution_plot_base64(ticker_data):
                  common_norm=False, multiple="stack", alpha=1, ax=ax)
 
     ax.set_title("Distribution of Daily Returns")
-    ax.set_xlabel("Daily Return (as decimal)")
+    ax.set_xlabel("Daily Return")
     ax.set_ylabel("Frequency")
 
     # If multiple columns, add a legend. If only one, it won't break anything.
@@ -69,23 +67,15 @@ def distribution_plot_base64(ticker_data):
 
     return plot_data
 
-
-
-
 # Beta
-
-
-import numpy as np
 
 def beta(ticker_data,benchmark_data):
   returns = pd.concat([ticker_data, benchmark_data], axis=1)
   returns.columns = ['Stock', 'Market']
   returns = returns.dropna()
-
   covariance = np.cov(returns['Stock'], returns['Market'])[0][1]
   market_variance = np.var(returns['Market'])
   beta = covariance / market_variance
-
   return round(beta,2)
 
 
@@ -99,7 +89,7 @@ def treynor_ratio(ticker_data, benchmark_data, risk_free_rate, beta):
     treynor = (excess_returns.mean() / beta) * np.sqrt(252)
     return round(treynor, 2)
 
-
+# Sharpe Ratio
 
 def sharpe_ratio(ticker_data,benchmark_data,risk_free_rate):
   returns = pd.concat([ticker_data, benchmark_data], axis=1)
@@ -117,12 +107,7 @@ def volatility(ticker_data):
   volatility = returns.std()
   return round(volatility,2)[0]
 
-
-import pandas as pd
-import statsmodels.api as sm
-from statsmodels.tools import add_constant
-
-def jensen_alpha(ticker_data, benchmark_data):
+def alpha(ticker_data, benchmark_data):
     returns_data = pd.concat([ticker_data, benchmark_data], axis=1)
     returns_data.columns = ['Stock', 'Market']
     x = returns_data['Market']
@@ -131,24 +116,90 @@ def jensen_alpha(ticker_data, benchmark_data):
     model = sm.OLS(y, X).fit()
     alpha = model.params['const']
     return alpha
-
-
-
+    
 # CSV
 
 def data_csv(ticker, start, end, csv_filename):
     try:
         # Fetch historical data
         data = yf.download(ticker, start=start, end=end)['Close']
-
         # Save data to CSV
         data.to_csv(csv_filename)
-
-        print(f"Stock data for {ticker} has been saved to {csv_filename}")
         return csv_filename
     except Exception as e:
         print(f"An error occurred: {e}")
         return None
+
+
+def plot_correlation_matrix(tickers):
+    data = pd.DataFrame(tickers)
+    corr_matrix = data.corr()
+    
+    # Create figure
+    fig, ax = plt.subplots(figsize=(8, 6))
+    sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5, ax=ax)
+    ax.set_title("Portfolio Correlation")
+    
+    plt.tight_layout()
+    
+    # Convert figure to base64
+    buf = BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    plot_data = base64.b64encode(buf.getvalue()).decode('utf-8')
+    plt.close(fig)
+    
+    return plot_data
+
+
+def portfolio_beta(daily_returns, benchmark_returns, weights=None):
+    if weights is None:
+        weights = np.repeat(1 / len(daily_returns.columns), len(daily_returns.columns))
+    portfolio_daily_returns = daily_returns.dot(weights)
+    df = pd.concat([portfolio_daily_returns, benchmark_returns], axis=1).dropna()
+    df.columns = ['Portfolio', 'Benchmark']
+    covariance = np.cov(df['Portfolio'], df['Benchmark'])[0, 1]
+    benchmark_variance = np.var(df['Benchmark'])
+    beta = covariance / benchmark_variance
+    return beta
+
+def portfolio_volatility(daily_returns, weights=None):
+    if weights is None:
+        weights = np.repeat(1 / len(daily_returns.columns), len(daily_returns.columns))
+    portfolio_daily_returns = daily_returns.dot(weights)
+    daily_vol = np.std(portfolio_daily_returns)
+    annualized_vol = daily_vol * np.sqrt(252)
+    return annualized_vol
+
+def portfolio_sharpe_ratio(daily_returns, risk_free_rate, weights=None):
+    if weights is None:
+        weights = np.repeat(1 / len(daily_returns.columns), len(daily_returns.columns))
+    portfolio_daily_returns = daily_returns.dot(weights)
+    excess_returns = portfolio_daily_returns - risk_free_rate
+    sharpe = (np.mean(excess_returns) / np.std(portfolio_daily_returns)) * np.sqrt(252)
+    return sharpe
+
+def portfolio_treynor_ratio(daily_returns, benchmark_returns, risk_free_rate, weights=None):
+    if weights is None:
+        weights = np.repeat(1 / len(daily_returns.columns), len(daily_returns.columns))
+    portfolio_daily_returns = daily_returns.dot(weights)
+    # Compute portfolio beta using the function above
+    beta = portfolio_beta(daily_returns, benchmark_returns, weights)
+    excess_return = np.mean(portfolio_daily_returns) - risk_free_rate
+    treynor = (excess_return * np.sqrt(252)) / beta
+    return treynor
+
+def portfolio_alpha(daily_returns, benchmark_returns, weights=None):
+    if weights is None:
+        weights = np.repeat(1 / len(daily_returns.columns), len(daily_returns.columns))
+    portfolio_daily_returns = daily_returns.dot(weights)
+    df = pd.concat([portfolio_daily_returns, benchmark_returns], axis=1).dropna()
+    df.columns = ['Portfolio', 'Benchmark']
+    X = add_constant(df['Benchmark'])
+    model = sm.OLS(df['Portfolio'], X).fit()
+    alpha = model.params['const']
+    return alpha
+
 
 
 
