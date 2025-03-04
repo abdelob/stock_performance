@@ -29,7 +29,7 @@ def plot_correlation_matrix(ticker_data):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    # Stock Analysis: risk-free rate is taken from ^IRX by default and not displayed.
+    # Stock Analysis: using ^IRX as default risk-free rate and not displaying it.
     if request.method == 'POST':
         stock_symbol = request.form.get('stock_symbol', 'AAPL')
         benchmark_symbol = request.form.get('benchmark_symbol', '^GSPC')
@@ -37,25 +37,22 @@ def index():
         end_date = request.form.get('end_date', '2025-01-01')
         display_period = request.form.get('display_period', 'annual')  # "daily" or "annual"
 
-        # Use default risk-free rate from IRX
-        risk_free_rate = functions.get_risk_free_rate(start_date, end_date)
+        risk_free_rate = functions.get_risk_free_rate("^IRX", start_date, end_date)
 
         ticker_data = functions.get_stock(stock_symbol, start_date, end_date)
         benchmark_data = functions.get_benchmark(benchmark_symbol, start_date, end_date)
 
         beta_value = functions.beta(ticker_data, benchmark_data)
         volatility_value = functions.volatility(ticker_data)  # assumed annualized
-        # Use computed beta_value instead of None
         treynor_ratio_value = functions.treynor_ratio(ticker_data, benchmark_data, risk_free_rate, beta_value)
         sharpe_ratio_value = functions.sharpe_ratio(ticker_data, benchmark_data, risk_free_rate)
         alpha_value = functions.alpha(ticker_data, benchmark_data)
 
-        # Convert values for display based on the toggle.
         if display_period == 'annual':
-            volatility_disp = volatility_value * 100             # in percentage
-            alpha_disp = alpha_value * 252 * 100                  # annual alpha in %
-            treynor_disp = treynor_ratio_value                   # already annualized
-            sharpe_disp = sharpe_ratio_value                     # already annualized
+            volatility_disp = volatility_value * 100  # percentage
+            alpha_disp = alpha_value * 252 * 100       # annualized alpha in %
+            treynor_disp = treynor_ratio_value
+            sharpe_disp = sharpe_ratio_value
         else:
             volatility_disp = (volatility_value / np.sqrt(252)) * 100
             alpha_disp = alpha_value * 100
@@ -88,8 +85,7 @@ def portfolio():
         end_date = request.form.get('end_date', '2025-01-01')
         display_period = request.form.get('display_period', 'annual')
 
-        # Use default risk-free rate from IRX
-        risk_free_rate = functions.get_risk_free_rate(start_date, end_date)
+        risk_free_rate = functions.get_risk_free_rate("^IRX", start_date, end_date)
         
         stock_list = [s.strip() for s in stock_symbols_str.split(",")]
         try:
@@ -119,7 +115,7 @@ def portfolio():
             treynor_disp = treynor_ratio / np.sqrt(252)
             sharpe_disp = sharpe_ratio / np.sqrt(252)
         
-        # Interpret alpha (annualized percentage) to indicate performance relative to the benchmark.
+        # Interpret alpha: if positive, portfolio outperformed; if negative, underperformed.
         if alpha_disp > 0:
             alpha_interpretation = f"The portfolio outperformed the benchmark by {alpha_disp:.2f}% annually."
         elif alpha_disp < 0:
