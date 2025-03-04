@@ -2,31 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Portfolio Performance</title>
+  <title>Stock Analysis</title>
   <style>
     /* Reset */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; background-color: #1e1e1e; color: #ffffff; }
     .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-    /* Navigation */
     nav { text-align: center; margin-bottom: 2rem; }
     nav a { color: #4caf50; text-decoration: none; margin: 0 1rem; font-size: 1.2rem; }
     nav a:hover { text-decoration: underline; }
-    /* Form Styling */
     form { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2rem; }
-    .stock-row { display: flex; gap: 1rem; align-items: center; }
-    .stock-row > div { flex: 1; }
     label { margin-bottom: 0.5rem; font-weight: bold; }
-    input[type="text"],
-    input[type="date"],
-    input[type="number"],
-    select {
-      padding: 0.5rem; border: none; border-radius: 4px; font-size: 1rem; background: #333; color: #fff; width: 100%;
+    input[type="text"], input[type="date"], select {
+      padding: 0.5rem; border: none; border-radius: 4px; font-size: 1rem; background: #333; color: #fff;
     }
     button { background-color: #4caf50; color: white; border: none; border-radius: 4px; padding: 0.75rem 1.5rem; font-size: 1rem; cursor: pointer; margin-top: 1.5rem; align-self: flex-start; }
     button:hover { background-color: #45a049; }
     .note { font-size: 0.9rem; color: #cccccc; margin-top: 0.5rem; }
-    /* Analysis Results Section */
     .analysis-results { display: flex; gap: 2rem; margin-top: 2rem; flex-wrap: wrap; }
     .ratios-container, .plot-container {
       flex: 1; background-color: #2b2b2b; padding: 1rem; border-radius: 8px; min-width: 300px;
@@ -57,46 +49,16 @@
     <a href="{{ url_for('portfolio') }}">Portfolio Performance</a>
   </nav>
   <div class="container">
-    <h1>Portfolio Performance</h1>
-    <form method="POST" id="portfolio-form">
-      <div id="stocks-container">
-        {% if stock_symbols is defined and stock_weights is defined %}
-          {% set tickers = stock_symbols.split(',') %}
-          {% set weights = stock_weights.split(',') %}
-          {% for ticker, weight in zip(tickers, weights) %}
-            <div class="stock-row">
-              <div>
-                <label>Stock Ticker:</label>
-                <input type="text" name="stock_symbol" class="stock-symbol" required value="{{ ticker }}">
-              </div>
-              <div>
-                <label>Weight (%):</label>
-                <input type="number" name="stock_weight" class="stock-weight" required placeholder="e.g. 50" value="{{ weight }}">
-              </div>
-            </div>
-          {% endfor %}
-        {% else %}
-          <div class="stock-row">
-            <div>
-              <label>Stock Ticker:</label>
-              <input type="text" name="stock_symbol" class="stock-symbol" required>
-            </div>
-            <div>
-              <label>Weight (%):</label>
-              <input type="number" name="stock_weight" class="stock-weight" required placeholder="e.g. 50">
-            </div>
-          </div>
-        {% endif %}
+    <h1>Stock Analysis</h1>
+    <form method="POST">
+      <div>
+        <label for="stock_symbol">Stock Ticker:</label>
+        <input type="text" id="stock_symbol" name="stock_symbol" required value="{{ stock_symbol if stock_symbol else '' }}">
       </div>
-      <button type="button" id="add-stock-btn">Add Stock</button>
-      
-      <!-- Benchmark Field -->
       <div>
         <label for="benchmark_symbol">Benchmark Ticker:</label>
-        <input type="text" id="benchmark_symbol" name="benchmark_symbol" value="{{ benchmark_symbol if benchmark_symbol else '^GSPC' }}" required>
+        <input type="text" id="benchmark_symbol" name="benchmark_symbol" required value="{{ benchmark_symbol if benchmark_symbol else '^GSPC' }}">
       </div>
-      
-      <!-- Toggle for Daily vs Annual -->
       <div>
         <label for="display_period">Display Period:</label>
         <select id="display_period" name="display_period">
@@ -104,7 +66,6 @@
           <option value="daily" {% if display_period=='daily' %}selected{% endif %}>Daily</option>
         </select>
       </div>
-      
       <div>
         <label for="start_date">Start Date:</label>
         <input type="date" id="start_date" name="start_date" required value="{{ start_date if start_date else '2024-01-01' }}">
@@ -113,30 +74,26 @@
         <label for="end_date">End Date:</label>
         <input type="date" id="end_date" name="end_date" required value="{{ end_date if end_date else '2025-01-01' }}">
       </div>
-      
-      <!-- Hidden fields for tickers and weights -->
-      <input type="hidden" name="stock_symbols" id="stock_symbols">
-      <input type="hidden" name="stock_weights" id="stock_weights">
-      <button type="submit">Analyze Portfolio</button>
-      <p class="note">Note: We use <strong>^IRX</strong> as the default risk‐free rate (yield on U.S. Treasury Bills, a riskless asset).</p>
+      <button type="submit">Calculate Metrics</button>
+      <p class="note">Note: The risk‐free rate is taken from <strong>^IRX</strong> (yield on U.S. Treasury Bills, a riskless asset).</p>
     </form>
     
     {% if beta is defined %}
     <div class="analysis-results">
       <!-- Left: Performance Ratios -->
       <div class="ratios-container">
-        <h2>Portfolio Performance Ratios</h2>
+        <h2>Stock Performance Ratios</h2>
         <div class="metric-card">
           <h3>Beta: {{ beta | round(4) }}
             <span class="tooltip">?
-              <span class="tooltiptext">Beta measures the portfolio's sensitivity to the benchmark.</span>
+              <span class="tooltiptext">Beta measures the stock's sensitivity to the market.</span>
             </span>
           </h3>
         </div>
         <div class="metric-card">
           <h3>Volatility: {{ volatility | round(4) }}%
             <span class="tooltip">?
-              <span class="tooltiptext">Annualized volatility is the standard deviation scaled by √252 (or daily volatility if toggled).</span>
+              <span class="tooltiptext">Annualized volatility is the standard deviation of returns scaled by √252.</span>
             </span>
           </h3>
         </div>
@@ -157,61 +114,22 @@
         <div class="metric-card">
           <h3>Alpha: {{ alpha | round(4) }}%
             <span class="tooltip">?
-              <span class="tooltiptext">Alpha represents the portfolio's excess return over the benchmark.</span>
+              <span class="tooltiptext">Alpha represents the excess return over the benchmark.</span>
             </span>
           </h3>
         </div>
       </div>
-      <!-- Right: Correlation Matrix -->
+      <!-- Right: Distribution Plot -->
       <div class="plot-container">
-        <h2>Correlation Matrix</h2>
-        {% if correlation_plot %}
-          <img src="data:image/png;base64,{{ correlation_plot }}" alt="Correlation Matrix">
+        <h2>Distribution of Daily Returns</h2>
+        {% if plot_data %}
+          <img src="data:image/png;base64,{{ plot_data }}" alt="Distribution Plot">
         {% else %}
-          <p>Correlation matrix will appear here.</p>
+          <p>Plot will appear here.</p>
         {% endif %}
       </div>
     </div>
-    {% if alpha_interpretation is defined %}
-      <div class="note" style="margin-top: 1rem;">
-        <strong>Interpretation:</strong> {{ alpha_interpretation }}
-      </div>
-    {% endif %}
     {% endif %}
   </div>
-  <script>
-    // Dynamically add new stock row with ticker and weight fields
-    document.getElementById('add-stock-btn').addEventListener('click', function() {
-      var container = document.getElementById('stocks-container');
-      var div = document.createElement('div');
-      div.className = 'stock-row';
-      div.innerHTML = `
-        <div>
-          <label>Stock Ticker:</label>
-          <input type="text" name="stock_symbol" class="stock-symbol" required>
-        </div>
-        <div>
-          <label>Weight (%):</label>
-          <input type="number" name="stock_weight" class="stock-weight" required placeholder="e.g. 50">
-        </div>
-      `;
-      container.appendChild(div);
-    });
-    // Before form submission, combine ticker and weight inputs into hidden fields
-    document.getElementById('portfolio-form').addEventListener('submit', function(e) {
-      var symbolInputs = document.getElementsByClassName('stock-symbol');
-      var weightInputs = document.getElementsByClassName('stock-weight');
-      var tickers = [];
-      var weights = [];
-      for (var i = 0; i < symbolInputs.length; i++){
-        if(symbolInputs[i].value.trim() !== '' && weightInputs[i].value.trim() !== ''){
-          tickers.push(symbolInputs[i].value.trim());
-          weights.push(weightInputs[i].value.trim());
-        }
-      }
-      document.getElementById('stock_symbols').value = tickers.join(',');
-      document.getElementById('stock_weights').value = weights.join(',');
-    });
-  </script>
 </body>
 </html>

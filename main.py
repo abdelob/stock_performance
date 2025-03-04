@@ -37,7 +37,7 @@ def index():
         end_date = request.form.get('end_date', '2025-01-01')
         display_period = request.form.get('display_period', 'annual')  # "daily" or "annual"
 
-        risk_free_rate = functions.get_risk_free_rate("^IRX", start_date, end_date)
+        risk_free_rate = functions.get_risk_free_rate(start_date, end_date)
 
         ticker_data = functions.get_stock(stock_symbol, start_date, end_date)
         benchmark_data = functions.get_benchmark(benchmark_symbol, start_date, end_date)
@@ -85,7 +85,7 @@ def portfolio():
         end_date = request.form.get('end_date', '2025-01-01')
         display_period = request.form.get('display_period', 'annual')
 
-        risk_free_rate = functions.get_risk_free_rate("^IRX", start_date, end_date)
+        risk_free_rate = functions.get_risk_free_rate(start_date, end_date)
         
         stock_list = [s.strip() for s in stock_symbols_str.split(",")]
         try:
